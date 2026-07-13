@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compile C++", // This has to match with keybindings.json
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build"
+            ],
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Task to compile this specific project"
+        },
+		{
+            "label": "Compile n Run C++", // This has to match with keybindings.json
+            "type": "shell",
+            "dependsOn": ["Compile C++"],
+            "dependsOrder": "sequence",
+            "command": "build\\QC-Linear-Algebra-Portable-Distribution\\QC_Linear_Algebra.exe",
+            "presentation": {
+                "panel": "dedicated"
+            },
+            "detail": "Task to Compile then Execute immidiately"
+        }
+    ]
+}
