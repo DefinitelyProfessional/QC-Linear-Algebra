@@ -45,7 +45,7 @@ namespace UI {
         // This is the only function you call inside your main window loop.
         // =========================================================================
         
-        void RenderUI() {
+        void Render() {
             // Create the window panel
             ImGui::Begin("Placeholder_Panel_Name");
 
@@ -117,7 +117,7 @@ namespace UI {
         // THE RENDER LOOP
         // =========================================================================
         
-        void RenderUI() {
+        void Render() {
             ImGui::Begin("Linear Algebra Dispatcher");
 
             // 1. The Input Section

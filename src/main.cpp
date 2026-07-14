@@ -1,5 +1,6 @@
 #include "headers/ui-utilities/stage-utilities.hpp"
 #include "headers/ui-utilities/general-utilities.hpp"
+#include "headers/math-core/function-definitions.hpp"
 #include <iostream>
 
 void CoreEngine_ComplexOperation(int inputParameter) {
@@ -11,7 +12,7 @@ int main() {
     GLFWwindow* window = STAGE::InitializeApplication(750, 1000, "QC Linear Algebra Sandbox Engine R.");
     if (!window) {
         std::cerr << "Fatal Error: Failed to initialize application stages." << std::endl;
-        return -1;
+        return 1;
     }
     ImVec4 clear_color = ImVec4(0.12f, 0.12f, 0.14f, 1.00f);
 
@@ -93,8 +94,8 @@ int main() {
         // -----------------------------------------------------------
         // ENGINE UI & EVENT LISTENERS
         // -----------------------------------------------------------
-        myCustomUI.RenderUI();
-        engineInterface.RenderUI();
+        myCustomUI.Render();
+        engineInterface.Render();
         ImGui::Begin("Matrix Operations");
         ImGui::Text("Welcome to the Linear Algebra Engine.");
         ImGui::Separator();

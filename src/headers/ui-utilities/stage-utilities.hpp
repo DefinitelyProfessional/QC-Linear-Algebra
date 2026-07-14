@@ -4,7 +4,10 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
+#include <windows.h>
+#include <filesystem>
 #include <iostream>
+#include <string>
 
 namespace STAGE {
 
@@ -46,6 +49,14 @@ namespace STAGE {
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init("#version 330");
 
+        // Extract and locate the imgui.ini to portable dist directory
+        wchar_t buffer[MAX_PATH];
+        GetModuleFileNameW(NULL, buffer, MAX_PATH);
+        std::filesystem::path exeDir = std::filesystem::path(buffer).parent_path();
+        std::filesystem::path iniPath = exeDir / "imgui.ini";
+        static std::string persistentIniPath = iniPath.string();
+        io.IniFilename = persistentIniPath.c_str();
+        
         return window;
     }
 
