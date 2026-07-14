@@ -5,41 +5,46 @@
 #include <stdexcept>
 #include <utility>
 
+// ============================================================================
+// Versatile Matrix Data Structure for both classical and quantum
+// ============================================================================
 class Matrix {
-protected: // Protected so the Vector subclass can access them
+protected:
+    // Prefixed with m_ to completely avoid naming conflicts with accessor methods
     std::vector<std::complex<double>> m_data;
     size_t m_rows;
     size_t m_cols;
-    
     std::string m_id;
     
-    // cached metadata
-    bool is_unitary;
-    bool is_hermitian;
-    bool is_normalized;
+    // Cached quantum metadata properties
+    bool m_is_unitary;
+    bool m_is_hermitian;
+    bool m_is_normalized;
 
 public:
     // Dimension-First Constructor (Allocates empty/zero matrix)
     Matrix(size_t rows, size_t cols, std::string id = "unnamed_matrix")
         : m_rows(rows), m_cols(cols), m_id(std::move(id)), 
-          m_data(rows * cols, {0.0, 0.0}), // Zero-initialize contiguous memory
-          is_unitary(false), is_hermitian(false), is_normalized(false) {}
+          m_data(rows * cols, {0.0, 0.0}), 
+          m_is_unitary(false), m_is_hermitian(false), m_is_normalized(false) {}
 
     // Population Constructor (Receives dimensions and a flat input array)
     Matrix(size_t rows, size_t cols, const std::vector<std::complex<double>>& input_data, std::string id = "unnamed_matrix")
         : m_rows(rows), m_cols(cols), m_id(std::move(id)),
-          is_unitary(false), is_hermitian(false), is_normalized(false) {
+          m_is_unitary(false), m_is_hermitian(false), m_is_normalized(false) {
         
         // Strict boundary checking before memory assignment
         if (input_data.size() != rows * cols) {
             throw std::invalid_argument("Input array dimensions do not match the provided rows and columns.");
         }
         
-        // C++ std::vector assignment safely copies the continuous block of memory
         m_data = input_data; 
     }
 
-    // --- Accessors & Mutators ---
+    // Virtual destructor guarantees safe cleanup if handled via base class pointers
+    virtual ~Matrix() = default;
+
+    // Accessors & Mutators - Now completely conflict-free!
     size_t rows() const { return m_rows; }
     size_t cols() const { return m_cols; }
     const std::string& get_id() const { return m_id; }
@@ -58,22 +63,25 @@ public:
     const std::complex<double>* raw_buffer() const { return m_data.data(); }
 };
 
-class Vector : public Matrix {
+// ============================================================================
+// Column Vector (Inherits from Matrix)
+// ============================================================================
+class ClassicVector : public Matrix {
 public:
-    // Dimension-First Constructor
-    Vector(size_t dim, std::string id = "unnamed_vector")
+    // Dimension-First Constructor (Forces columns parameter to 1 automatically)
+    ClassicVector(size_t dim, std::string id = "unnamed_vector")
         : Matrix(dim, 1, std::move(id)) {}
 
-    // Population Constructor
-    Vector(size_t dim, const std::vector<std::complex<double>>& input_data, std::string id = "unnamed_vector")
+    // Population Constructor (Forces columns parameter to 1 automatically)
+    ClassicVector(size_t dim, const std::vector<std::complex<double>>& input_data, std::string id = "unnamed_vector")
         : Matrix(dim, 1, input_data, std::move(id)) {}
 
-    // Vector-specific dimension accessor
+    // Vector-specific dimension accessor (Simply references our underlying rows variable)
     size_t dim() const { return m_rows; }
 
-    // 1D Indexing accessor specifically for vectors
+    // Convenient 1D Indexing accessor specifically for linear vectors
     inline std::complex<double>& operator()(size_t i) {
-        return m_data[i]; // Bypasses the row-major math since cols == 1
+        return m_data[i]; 
     }
     
     inline const std::complex<double>& operator()(size_t i) const {

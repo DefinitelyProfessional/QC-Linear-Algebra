@@ -4,7 +4,7 @@
 
 ---
 #### Made with Dear ImGui v1.92.8 by Omar Cornut and contributors. 
-Implementations of Linear Algebra concepts relevant to Quantum Computing made into a sandbox engine for testing and learning purposes. This project aims to provide a hands-on experience with the mathematical foundations of quantum computing, allowing users to explore and manipulate linear algebra operations in a (hopefully) controlled environment.
+Implementations of Linear Algebra concepts relevant to Quantum Computing made into a sandbox engine for testing and learning purposes. This project aims to provide a hands-on experience with the mathematical foundations of quantum computing, allowing users to explore and manipulate linear algebra operations in a sandbox environment.
 
 ## Production environment
 A `CMakeLists.txt` file is provided in the root directory. First configure the project with CMake by running the command:
