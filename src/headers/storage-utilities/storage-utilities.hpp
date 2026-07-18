@@ -1,19 +1,18 @@
 #pragma once
 #include "math-core/variable-definitions.hpp"
-#include <sqlite3.h>
 #include <unordered_map>
-#include <string>
-#include <stdexcept>
 #include <filesystem>
+#include <sqlite3.h>
 #include <iostream>
 #include <variant>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
 // Type-safe union that can hold any of linear algebra objects
 using LinAlgObject = std::variant<GenericMatrix, GenericVector>;
 
-enum class LinalgType : int {
+enum class LinAlgType : int {
     GenericMatrix = 0,
     GenericVector = 1
 };
@@ -23,8 +22,6 @@ enum class LinalgType : int {
 class SandboxSession {
 private:
     fs::path s_filepath;
-    
-    // The Registry now stores the variant values directly
     std::unordered_map<std::string, LinAlgObject> s_registry;
 
     static void execute_sql(sqlite3* db, const std::string& sql) {
@@ -41,20 +38,14 @@ private:
 
 public:
     // LOAD sandbox data from specified filename as a SandboxSession
-    explicit SandboxSession(const std::string& filename) {
-        fs::path dir = fs::current_path() / "saved-data";
-        if (!fs::exists(dir)) {
-            fs::create_directories(dir);
-        }
-
-        s_filepath = dir / filename;
+    explicit SandboxSession(const fs::path& data_dir, const std::string& filename) {
+        s_filepath = data_dir / filename;
 
         if (!fs::exists(s_filepath)) {
             std::cout << "Creating new sandbox session targeting: " << s_filepath.filename() << "\n";
             return; 
         }
-
-        std::cout << "Loading existing sandbox session from: " << s_filepath.filename() << "\n";
+        else {std::cout << "Loading existing sandbox session from: " << s_filepath.filename() << "\n";}
         
         sqlite3* db;
         if (sqlite3_open(s_filepath.string().c_str(), &db) != SQLITE_OK) {
@@ -68,7 +59,7 @@ public:
         if (sqlite3_prepare_v2(db, query_sql, -1, &stmt, nullptr) == SQLITE_OK) {
             while (sqlite3_step(stmt) == SQLITE_ROW) {
                 std::string id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-                LinalgType tag = static_cast<LinalgType>(sqlite3_column_int(stmt, 1));
+                LinAlgType tag = static_cast<LinAlgType>(sqlite3_column_int(stmt, 1));
                 size_t rows = static_cast<size_t>(sqlite3_column_int64(stmt, 2));
                 size_t cols = static_cast<size_t>(sqlite3_column_int64(stmt, 3));
 
@@ -83,7 +74,7 @@ public:
                 }
 
                 // Emplace the correct struct directly into the variant map
-                if (tag == LinalgType::GenericVector) {
+                if (tag == LinAlgType::GenericVector) {
                     s_registry.emplace(id, GenericVector(rows, data)); // rows represents v_dim here
                 } else {
                     s_registry.emplace(id, GenericMatrix(rows, cols, data));
@@ -175,7 +166,7 @@ public:
                     using T = std::decay_t<decltype(obj)>;
                     
                     if constexpr (std::is_same_v<T, GenericMatrix>) {
-                        sqlite3_bind_int(stmt, 2, static_cast<int>(LinalgType::GenericMatrix));
+                        sqlite3_bind_int(stmt, 2, static_cast<int>(LinAlgType::GenericMatrix));
                         sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(obj.m_rows));
                         sqlite3_bind_int64(stmt, 4, static_cast<sqlite3_int64>(obj.m_cols));
                         
@@ -183,7 +174,7 @@ public:
                         sqlite3_bind_blob(stmt, 5, obj.raw_buffer(), static_cast<int>(byte_size), SQLITE_STATIC);
                     
                     } else if constexpr (std::is_same_v<T, GenericVector>) {
-                        sqlite3_bind_int(stmt, 2, static_cast<int>(LinalgType::GenericVector));
+                        sqlite3_bind_int(stmt, 2, static_cast<int>(LinAlgType::GenericVector));
                         sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(obj.v_dim));
                         sqlite3_bind_int64(stmt, 4, 1); // Force cols to 1 for vector mapping
                         

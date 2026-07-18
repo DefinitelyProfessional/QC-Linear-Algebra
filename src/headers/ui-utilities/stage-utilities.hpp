@@ -22,12 +22,12 @@
 // Base class for windows based UI
 class UIWindow {
 protected:
-    std::string m_WindowName;
-    bool m_IsOpen;
+    std::string window_name;
+    bool is_open;
 
 public:
     UIWindow(const std::string& name, bool startOpen = true)
-        : m_WindowName(name), m_IsOpen(startOpen) {}
+        : window_name(name), is_open(startOpen) {}
 
     virtual ~UIWindow() = default;
 
@@ -35,9 +35,9 @@ public:
     virtual void Render() = 0;
 
     // Standard getters/setters for window visibility
-    bool IsOpen() const { return m_IsOpen; }
-    void SetOpen(bool open) { m_IsOpen = open; }
-    const std::string& GetName() const { return m_WindowName; }
+    bool IsOpen() const { return is_open; }
+    void SetOpen(bool open) { is_open = open; }
+    const std::string& GetName() const { return window_name; }
 };
 
 
@@ -46,28 +46,27 @@ namespace STAGE {
     // Unified class to manage rendering all windows with imgui ===============================================
     class WindowManager {
     private:
-        std::vector<std::unique_ptr<UIWindow>> m_Windows;
+        std::vector<std::unique_ptr<UIWindow>> windows_registry;
     public:
-        // Register a new window panel dynamically into the ecosystem
-        template <typename T, typename... Args>
-        T* RegisterWindow(Args&&... args) {
+        // Register a new window dynamically into the ecosystem
+        template <typename T, typename... Args> T* RegisterWindow(Args&&... args) {
             // Create the derived window instance safely
             auto window = std::make_unique<T>(std::forward<Args>(args)...);
             T* rawPtr = window.get();
-            m_Windows.push_back(std::move(window));
+            windows_registry.push_back(std::move(window));
             return rawPtr; // Return pointer so main can bind callbacks immediately
         }
 
         // Single unified dispatch call to render every single registered component
         void RenderAll() {
-            for (const auto& window : m_Windows) {
+            for (const auto& window : windows_registry) {
                 if (window->IsOpen()) {window->Render();}
             }
         }
 
         // Optional: Search for a window dynamically by its ImGui string ID
         UIWindow* FindWindow(const std::string& name) {
-            for (const auto& window : m_Windows) {
+            for (const auto& window : windows_registry) {
                 if (window->GetName() == name) return window.get();
             }
             return nullptr;

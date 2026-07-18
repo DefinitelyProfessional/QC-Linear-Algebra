@@ -5,15 +5,32 @@
 // for UIWindow 
 #include "stage-utilities.hpp"
 
+#include <filesystem>
 #include <functional>
-#include <algorithm>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <cstring>
+#include <string>
 
+namespace fs = std::filesystem;
 
 namespace UI {
+    // Sandbox selector window
+    class SandboxManagerWindow : public UIWindow {
+    private:
+        fs::path saved_data_dir;
+    
+    public:
+        // Event Listeners to be defined in main
+        std::function<void(std::string)> Event_OnSelectSandbox;
+
+        // Constructor simply sets UIWindow window_name and directory filepath
+        SandboxManagerWindow(const fs::path& data_dir) : 
+            UIWindow("SandboxManager"), saved_data_dir(data_dir) {}
+
+        // Render function definition
+        void Render() override {
+            if (!is_open) return; // render control
+
+        }
+    };
     // class VectorEntryWindow : public UIWindow {
     // private:
     //     VectorManager* m_VectorManager;
