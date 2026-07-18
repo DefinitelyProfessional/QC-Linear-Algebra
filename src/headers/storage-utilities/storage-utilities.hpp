@@ -21,7 +21,7 @@ enum class LinAlgType : int {
 class SandboxSessionManager {
 private:
     fs::path saved_data_dir;
-    std::string active_filename;
+    std::string active_filename; // read-only reference for SandboxManagerWindow
     std::unordered_map<std::string, LinAlgObject> s_registry;
 
     // helper function to execute simple sqlite3
@@ -48,7 +48,7 @@ private:
         
         sqlite3* db;
         if (sqlite3_open(s_filepath.string().c_str(), &db) != SQLITE_OK) {
-            throw std::runtime_error("Failed to open SQLite database: " + s_filepath.string());
+            throw std::runtime_error("[SANDBOX] Failed to open SQLite database: " + s_filepath.string());
         }
 
         const char* query_sql = "SELECT object_id, type_tag, rows, cols, data_blob FROM linear_objects;";
@@ -81,6 +81,7 @@ private:
         }
         sqlite3_finalize(stmt);
         sqlite3_close(db);
+        std::cout << "[SANDBOX] Successfully loaded from: " << s_filepath.filename() << "\n";
     }
 
 public:
@@ -106,7 +107,7 @@ public:
     template<typename T>
     T* get_as(const std::string& id) {
         auto it = s_registry.find(id);
-        if (it == s_registry.end()) return nullptr;
+        if (it == s_registry.end()) {return nullptr;}
         
         // std::get_if safely checks the variant. If it holds a T, returns a pointer to it.
         return std::get_if<T>(&it->second);
@@ -114,7 +115,7 @@ public:
 
     // Dictionary key rename without copying heavy vector data
     void rename(const std::string& old_id, const std::string& new_id) {
-        if (old_id == new_id) return;
+        if (old_id == new_id) {return;}
         auto node = s_registry.extract(old_id);
         if (!node.empty()) {
             node.key() = new_id;

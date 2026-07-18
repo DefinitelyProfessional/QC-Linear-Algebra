@@ -49,7 +49,7 @@ namespace STAGE {
         // Optional: Search for a window dynamically by its ImGui string ID
         UIWindow* FindWindow(const std::string& name) {
             for (const auto& window : windows_registry) {
-                if (window->GetName() == name) return window.get();
+                if (window->GetName() == name) {return window.get();}
             }
             return nullptr;
         }
@@ -64,7 +64,7 @@ namespace STAGE {
     inline GLFWwindow* InitializeApplication(int width, int height, const char* TITLE, const fs::path& ROOT) {
         // GLFW Setup
         glfwSetErrorCallback(glfw_error_callback);
-        if (!glfwInit()) return nullptr;
+        if (!glfwInit()) {return nullptr;}
 
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
