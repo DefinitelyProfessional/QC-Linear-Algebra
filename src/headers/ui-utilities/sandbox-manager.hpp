@@ -29,6 +29,7 @@ public:
     // Event Listeners to be defined in main.cpp
     std::function<void(std::string)> Event_OnSelectSandbox;
     std::function<void(std::string)> Event_OnCreateSandbox;
+    std::function<void(void)> Event_OnSaveCurrentSandbox;
 
     // Constructor simply sets UIWindow window_name and directory filepath
     SandboxManagerWindow(const fs::path& data_dir, const std::string& active_file) : 
@@ -87,7 +88,7 @@ public:
                 }
             }
         }
-
+        error_buffer = "";
         return true;
     }
 
@@ -104,6 +105,11 @@ public:
         ImGui::Text("Current Active Sandbox : ");
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f,0.5f,0.0f,1.0f), "%s", active_filename.c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Save File")) {
+            if (Event_OnSaveCurrentSandbox) {Event_OnSaveCurrentSandbox();}
+            refresh_filenames();
+        }
         ImGui::Separator();
 
         ImGui::Text("Enter New Sandbox Name :");
@@ -115,15 +121,14 @@ public:
         ImGui::SameLine();
         
         // Only allow creation if the user actually typed something
-        ImGui::BeginDisabled(strlen(new_sandbox_input) == 0);
+        ImGui::BeginDisabled(new_sandbox_input[0] == '\0');
         if (ImGui::Button("Create")) {
-            if (Event_OnCreateSandbox) {
-                Event_OnCreateSandbox(std::string(new_sandbox_input));
+            std::string filename = std::string(new_sandbox_input);
+            if (is_valid_new_filename(filename)) {
+                if (Event_OnCreateSandbox) {Event_OnCreateSandbox(filename);}
             }
             // Clear the input box after submission
-            new_sandbox_input[0] = '\0'; 
-            // Clear error_buffer as well
-            error_buffer = "";
+            new_sandbox_input[0] = '\0';
         }
         ImGui::EndDisabled();
 
@@ -136,45 +141,38 @@ public:
         // Refresh Button aligned above the table
         if (ImGui::Button("Refresh List")) {refresh_filenames();}
 
-        // Table Flags: Draw borders, alternating row colors, and allow vertical scrolling.
-        // We subtract space at the bottom to leave room for the load button.
         ImGuiTableFlags table_flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY;
-        ImVec2 table_size = ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() * 1.5f);
+        ImVec2 table_size = ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() * 1.0f);
 
         if (ImGui::BeginTable("##SandboxTable", 1, table_flags, table_size)) {
             ImGui::TableSetupColumn("Available Databases :");
             ImGui::TableHeadersRow();
 
-            for (int i = 0; i < db_filenames_size; i++) {
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
+            ImGuiListClipper clipper;
+            clipper.Begin(db_filenames_size); 
 
-                bool is_selected = (selected_index == i);
-                std::string& filename = db_filenames[i];
+            while (clipper.Step()) {
+                for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
 
-                // Draw the selectable item. SpanAllColumns ensures the whole row is clickable.
-                if (ImGui::Selectable(filename.c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
-                    selected_index = i;
-                }
+                    const std::string& filename = db_filenames[i];
 
-                // Double-clicking a row to load it
-                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                    selected_index = i;
-                    if (Event_OnSelectSandbox) Event_OnSelectSandbox(db_filenames[selected_index]);
+                    // Draw the selectable item
+                    if (ImGui::Selectable(filename.c_str(), selected_index == i, ImGuiSelectableFlags_SpanAllColumns)) {
+                        selected_index = i;
+                    }
+
+                    // Interaction logic
+                    if ((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) ||
+                    (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter))) {
+                        selected_index = i;
+                        if (Event_OnSelectSandbox) Event_OnSelectSandbox(db_filenames[selected_index]);
+                    }
                 }
             }
             ImGui::EndTable();
         }
-
-        ImGui::Separator();
-
-        // ==========================================
-        // BOTTOM PANEL Confirmation Status
-        // ==========================================
-        std::string preview_text = (selected_index >= 0 && selected_index < db_filenames_size) 
-                                    ? db_filenames[selected_index] : "No File Selected";
-        
-        ImGui::Text("Target: %s", preview_text.c_str());
         
         ImGui::End();
     }

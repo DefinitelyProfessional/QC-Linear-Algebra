@@ -3,7 +3,7 @@
 "The R stands for **Remarkable** Edition and definitely not as filler to make the acronym work because 'LASE just doesn't sound as good'." - Stephen Matthews 2026
 
 ---
-#### Made with Dear ImGui v1.92.8 by Omar Cornut and contributors. 
+#### Made with Dear ImGui v1.92.8 by OCornut and contributors. 
 Implementations of Linear Algebra concepts relevant to Quantum Computing made into a sandbox engine for testing and learning purposes. This project aims to provide a hands-on experience with the mathematical foundations of quantum computing, allowing users to explore and manipulate linear algebra operations in a sandbox environment.
 
 ## Production environment
