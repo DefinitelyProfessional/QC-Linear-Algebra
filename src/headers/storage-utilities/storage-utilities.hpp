@@ -81,7 +81,7 @@ private:
         }
         sqlite3_finalize(stmt);
         sqlite3_close(db);
-        std::cout << "[SANDBOX] Successfully loaded from: " << s_filepath.filename() << "\n";
+        std::cout << "[SANDBOX] Successfully loaded sandbox from: " << s_filepath.filename() << "\n";
     }
 
 public:

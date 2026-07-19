@@ -64,49 +64,77 @@ set(THIRDPARTY_SOURCES
     thirdparty/sqlite3/sqlite3.c
 )
 
-# Construct executable
-add_executable(${PROJECT_NAME} ${APP_SOURCES} ${THIRDPARTY_SOURCES})
+# ---------------------------------------------------------
+# TARGET DEFINITIONS
+# ---------------------------------------------------------
+# Compile heavy, unchanging dependencies into a local build-time static target
+add_library(QC-LASER-ThirdParty STATIC ${THIRDPARTY_SOURCES})
+
+target_include_directories(QC-LASER-ThirdParty PUBLIC
+    thirdparty/imgui
+    thirdparty/imgui/backends
+    thirdparty/sqlite3
+)
+
+# Define the primary application executable
+add_executable(${PROJECT_NAME} ${APP_SOURCES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    src
+    src/headers
+)
 
 # ---------------------------------------------------------
-# COMPILER-SPECIFIC OPTIMIZATIONS (GCC / Clang / MinGW)
+# COMPILER-SPECIFIC OPTIMIZATIONS
 # ---------------------------------------------------------
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # Apply baseline optimization levels
+    target_compile_options(QC-LASER-ThirdParty PRIVATE $<$<CONFIG:Release>:-O3>)
     target_compile_options(${PROJECT_NAME} PRIVATE
-        # DEBUG FLAGS: Keep flags safe, generate full debug info, no optimization
         $<$<CONFIG:Debug>:-g -O0 -Wall -Wextra>
-
-        # RELEASE FLAGS: Max stable optimizations + Parallel LTO
-        $<$<CONFIG:Release>:-O3 -march=native -mfma -ffast-math -flto=8>
+        $<$<CONFIG:Release>:-O3 -march=native -mfma -ffast-math>
     )
 
-    # Force the linker to use all CPU cores during the LTO phase
+    # Force parallel LTO during link phase safely
     target_link_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Release>:-flto=8>
+        $<$<CONFIG:Release>:-flto=auto>
     )
 elseif(MSVC)
-    # If you ever switch to native Visual Studio compiler
+    target_compile_options(QC-LASER-ThirdParty PRIVATE $<$<CONFIG:Release>:/O2>)
     target_compile_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:/Zi /Od>
         $<$<CONFIG:Release>:/O2 /Oi /Ot /arch:AVX2>
     )
 endif()
 
-# Map header search paths globally
-target_include_directories(${PROJECT_NAME} PRIVATE
-    src
-    src/headers
-    thirdparty/imgui
-    thirdparty/imgui/backends
-    thirdparty/sqlite3
+# ---------------------------------------------------------
+# PRECOMPILED HEADERS (Speeds up single main.cpp parsing)
+# ---------------------------------------------------------
+target_precompile_headers(${PROJECT_NAME} PRIVATE
+    <vector>
+    <string>
+    <memory>
+    <iostream>
+    <GLFW/glfw3.h>
+    "thirdparty/imgui/imgui.h"
 )
 
-# Link against the necessary graphics and system packages
+# ---------------------------------------------------------
+# LINKING & DISTRIBUTION PACKAGING
+# ---------------------------------------------------------
+# Link your app against the local static object bundle and system engines
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    QC-LASER-ThirdParty
     glfw
     OpenGL::GL
     SQLite3::SQLite3
 )
 
 if(MINGW)
+    # Windows system dependencies
     target_link_libraries(${PROJECT_NAME} PRIVATE imm32 gdi32)
+    
+    # Enforce standard runtime libraries to blend directly into the .exe 
+    # This prevents the application from needing external MinGW DLLs on deployment.
+    target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++ -static)
 endif()

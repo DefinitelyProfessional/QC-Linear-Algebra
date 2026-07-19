@@ -35,7 +35,7 @@ public:
             refresh_filenames();
         }
     
-        // Extract filename strings inside saved_data_dir and refresh variables
+    // Extract filename strings inside saved_data_dir and refresh variables
     void refresh_filenames() {
         db_filenames = std::vector<std::string>(); // Clean vector
         if (!fs::exists(saved_data_dir) || !fs::is_directory(saved_data_dir)) {
@@ -51,6 +51,8 @@ public:
         selected_index = -1;
     }
 
+    // Validate new sandbox filename
+    
     // Render function definition
     void Render() override {
         if (!is_open) return; // render control
@@ -131,16 +133,6 @@ public:
         
         ImGui::Text("Target: %s", preview_text.c_str());
         
-        // ImGui::SameLine(ImGui::GetWindowWidth() - 120);
-
-        // Disable the "Load" button if the user hasn't clicked a valid row yet
-        // ImGui::BeginDisabled(selected_index < 0);
-        // if (ImGui::Button("Load Sandbox", ImVec2(100, 0))) {
-        //     if (Event_OnSelectSandbox) {
-        //         Event_OnSelectSandbox(db_filenames[selected_index]);
-        //     }
-        // }
-        // ImGui::EndDisabled();
         ImGui::End();
     }
 };
