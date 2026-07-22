@@ -98,7 +98,7 @@ namespace STAGE {
         ImGui::NewFrame();
     }
 
-    void EndRenderLoop(GLFWwindow* window, ImVec4& clear_color) {
+    void EndRenderLoop(GLFWwindow* window, const ImVec4& clear_color) {
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);

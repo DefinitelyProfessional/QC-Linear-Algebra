@@ -1,10 +1,8 @@
 #pragma once
 
-#include <vector>
 #include <complex>
 #include <cstddef>
-
-// ========================================================================================================
+#include <vector>
 
 // Versatile simple Vector. GenericVector(dim, data)
 struct GenericVector {
@@ -23,8 +21,6 @@ struct GenericVector {
     // Zero-copy raw pointer exposure for the UI buffer
     inline const std::complex<double>* raw_buffer() const { return v_data.data(); }
 };
-
-// ========================================================================================================
 
 // Versatile simple Matrix. GenericMatrix(rows, cols, data)
 struct GenericMatrix {

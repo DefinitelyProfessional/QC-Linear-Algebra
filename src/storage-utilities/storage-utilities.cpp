@@ -1,9 +1,10 @@
 #include "storage-utilities/storage-utilities.hpp"
 
+#include <functional>
 #include <sqlite3.h>
+#include <stdexcept>
 #include <iostream>
 #include <cstring>
-#include <stdexcept>
 
 namespace fs = std::filesystem;
 
@@ -38,118 +39,154 @@ void SandboxSessionManager::load_sandbox() {
         throw std::runtime_error("[SANDBOX] Failed to open SQLite database: " + s_filepath.string());
     }
 
-    const char* query_sql = "SELECT object_id, type_tag, rows, cols, data_blob FROM linear_objects;";
+    // const char* query_sql = "SELECT object_id, type_tag, rows, cols, data_blob FROM linear_objects;";
 
-    sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(db, query_sql, -1, &stmt, nullptr) == SQLITE_OK) {
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            std::string id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            LinAlgType tag = static_cast<LinAlgType>(sqlite3_column_int(stmt, 1));
-            size_t rows = static_cast<size_t>(sqlite3_column_int64(stmt, 2));
-            size_t cols = static_cast<size_t>(sqlite3_column_int64(stmt, 3));
+    // sqlite3_stmt* stmt;
+    // if (sqlite3_prepare_v2(db, query_sql, -1, &stmt, nullptr) == SQLITE_OK) {
+    //     while (sqlite3_step(stmt) == SQLITE_ROW) {
+    //         std::string id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+    //         MathObjType tag = static_cast<MathObjType>(sqlite3_column_int(stmt, 1));
+    //         size_t rows = static_cast<size_t>(sqlite3_column_int64(stmt, 2));
+    //         size_t cols = static_cast<size_t>(sqlite3_column_int64(stmt, 3));
 
-            const void* blob_data = sqlite3_column_blob(stmt, 4);
-            int blob_bytes = sqlite3_column_bytes(stmt, 4);
+    //         const void* blob_data = sqlite3_column_blob(stmt, 4);
+    //         int blob_bytes = sqlite3_column_bytes(stmt, 4);
             
-            size_t total_elements = rows * cols;
-            std::vector<std::complex<double>> data(total_elements);
+    //         size_t total_elements = rows * cols;
+    //         std::vector<std::complex<double>> data(total_elements);
 
-            if (blob_bytes > 0 && blob_data) {
-                std::memcpy(data.data(), blob_data, blob_bytes);
-            }
+    //         if (blob_bytes > 0 && blob_data) {
+    //             std::memcpy(data.data(), blob_data, blob_bytes);
+    //         }
 
-            // Emplace the correct struct directly into the variant map
-            if (tag == LinAlgType::GenericVector) {
-                s_registry.emplace(id, GenericVector(rows, data)); // rows represents v_dim here
-            } else {
-                s_registry.emplace(id, GenericMatrix(rows, cols, data));
-            }
-        }
-    }
-    sqlite3_finalize(stmt);
+    //         // Emplace the correct struct directly into the variant map
+    //         if (tag == MathObjType::GenericVector) {
+    //             sandbox_registry.emplace(id, GenericVector(rows, data)); // rows represents v_dim here
+    //         } else {
+    //             sandbox_registry.emplace(id, GenericMatrix(rows, cols, data));
+    //         }
+    //     }
+    // }
+    // sqlite3_finalize(stmt);
     sqlite3_close(db);
     std::cout << "[SANDBOX] Successfully loaded sandbox from: " << s_filepath.filename() << "\n";
 }
 
 // Public
-void SandboxSessionManager::rename(const std::string& old_id, const std::string& new_id) {
-    if (old_id == new_id) {return;}
-    auto node = s_registry.extract(old_id);
-    if (!node.empty()) {
-        node.key() = new_id;
-        s_registry.insert(std::move(node));
+bool SandboxSessionManager::remove(std::string_view key) {
+    uint64_t hash = get_hash_key(key);
+    // Get map registry of specified hash
+    auto it = sandbox_registry.find(hash);
+    // Specified key has no match
+    if (it == sandbox_registry.end()) {return false;}
+
+    MathObjMap math_obj_map = it->second;
+    // Remove the object from its pool
+    switch (math_obj_map.type) {
+        case MathObjType::GenericVector:
+            swap_pop(generic_vector_pool, math_obj_map.index);
+            break;
+        case MathObjType::GenericMatrix:
+            swap_pop(generic_matrix_pool, math_obj_map.index);
+            break;
     }
+    // Finally remove the map registry
+    sandbox_registry.erase(it);
+    return true;
+}
+
+// Public
+void SandboxSessionManager::rename(std::string_view old_key, std::string_view new_key) {
+    // Return if there is no change in key
+    if (old_key == new_key) {return;}
+    // Get the map registry under the old_key hash 
+    uint64_t old_hash = get_hash_key(old_key);
+    // nonexistant nodes will return node.empty() = true
+    auto node = sandbox_registry.extract(old_hash);
+    // Replace the old key of the map registry with new_key hash
+    if (!node.empty()) {
+        uint64_t new_hash = get_hash_key(new_key);
+        node.key() = new_hash;
+        sandbox_registry.insert(std::move(node));
+    } // nonexistant nodes with old_key will be ignored
 }
 
 // Public
 void SandboxSessionManager::save_sandbox() const {
-    sqlite3* db;
     fs::path s_filepath = saved_data_dir / active_filename;
+    if (!fs::exists(s_filepath)) {
+        std::cout << "[SANDBOX] Saving new sandbox session targeting: " << s_filepath.filename() << "\n";
+        return; // There is nothing to load, exit.
+    }
+    else {std::cout << "[SANDBOX] Saving existing sandbox session from: " << s_filepath.filename() << "\n";}
+
+    sqlite3* db;
     if (sqlite3_open(s_filepath.string().c_str(), &db) != SQLITE_OK) {
         throw std::runtime_error("Failed to open SQLite database for writing.");
     }
+    
 
-    try {
-        execute_sql(db, "PRAGMA synchronous = NORMAL;");
-        execute_sql(db, "PRAGMA journal_mode = WAL;");
+    // try {
+    //     execute_sql(db, "PRAGMA synchronous = NORMAL;");
+    //     execute_sql(db, "PRAGMA journal_mode = WAL;");
         
-        // Simplified Schema
-        execute_sql(db, 
-            "CREATE TABLE IF NOT EXISTS linear_objects ("
-            "    object_id TEXT PRIMARY KEY,"
-            "    type_tag INTEGER,"
-            "    rows INTEGER,"
-            "    cols INTEGER,"
-            "    data_blob BLOB"
-            ");"
-        );
+    //     // Simplified Schema
+    //     execute_sql(db, 
+    //         "CREATE TABLE IF NOT EXISTS linear_objects ("
+    //         "    object_id TEXT PRIMARY KEY,"
+    //         "    type_tag INTEGER,"
+    //         "    rows INTEGER,"
+    //         "    cols INTEGER,"
+    //         "    data_blob BLOB"
+    //         ");"
+    //     );
 
-        execute_sql(db, "BEGIN TRANSACTION;");
-        execute_sql(db, "DELETE FROM linear_objects;");
+    //     execute_sql(db, "BEGIN TRANSACTION;");
+    //     execute_sql(db, "DELETE FROM linear_objects;");
 
-        const char* insert_sql = 
-            "INSERT INTO linear_objects (object_id, type_tag, rows, cols, data_blob) "
-            "VALUES (?, ?, ?, ?, ?);";
+    //     const char* insert_sql = 
+    //         "INSERT INTO linear_objects (object_id, type_tag, rows, cols, data_blob) "
+    //         "VALUES (?, ?, ?, ?, ?);";
         
-        sqlite3_stmt* stmt;
-        sqlite3_prepare_v2(db, insert_sql, -1, &stmt, nullptr);
+    //     sqlite3_stmt* stmt;
+    //     sqlite3_prepare_v2(db, insert_sql, -1, &stmt, nullptr);
 
-        for (const auto& [id, obj_variant] : s_registry) {
-            sqlite3_reset(stmt);
-            sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_STATIC);
+    //     for (const auto& [id, obj_variant] : sandbox_registry) {
+    //         sqlite3_reset(stmt);
+    //         sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_STATIC);
 
-            // std::visit lets us dynamically inspect the variant and run type-specific code
-            std::visit([&](const auto& obj) {
-                using T = std::decay_t<decltype(obj)>;
+    //         // std::visit lets us dynamically inspect the variant and run type-specific code
+    //         std::visit([&](const auto& obj) {
+    //             using T = std::decay_t<decltype(obj)>;
                 
-                if constexpr (std::is_same_v<T, GenericMatrix>) {
-                    sqlite3_bind_int(stmt, 2, static_cast<int>(LinAlgType::GenericMatrix));
-                    sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(obj.m_rows));
-                    sqlite3_bind_int64(stmt, 4, static_cast<sqlite3_int64>(obj.m_cols));
+    //             if constexpr (std::is_same_v<T, GenericMatrix>) {
+    //                 sqlite3_bind_int(stmt, 2, static_cast<int>(MathObjType::GenericMatrix));
+    //                 sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(obj.m_rows));
+    //                 sqlite3_bind_int64(stmt, 4, static_cast<sqlite3_int64>(obj.m_cols));
                     
-                    size_t byte_size = obj.m_rows * obj.m_cols * sizeof(std::complex<double>);
-                    sqlite3_bind_blob(stmt, 5, obj.raw_buffer(), static_cast<int>(byte_size), SQLITE_STATIC);
+    //                 size_t byte_size = obj.m_rows * obj.m_cols * sizeof(std::complex<double>);
+    //                 sqlite3_bind_blob(stmt, 5, obj.raw_buffer(), static_cast<int>(byte_size), SQLITE_STATIC);
                 
-                } else if constexpr (std::is_same_v<T, GenericVector>) {
-                    sqlite3_bind_int(stmt, 2, static_cast<int>(LinAlgType::GenericVector));
-                    sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(obj.v_dim));
-                    sqlite3_bind_int64(stmt, 4, 1); // Force cols to 1 for vector mapping
+    //             } else if constexpr (std::is_same_v<T, GenericVector>) {
+    //                 sqlite3_bind_int(stmt, 2, static_cast<int>(MathObjType::GenericVector));
+    //                 sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(obj.v_dim));
+    //                 sqlite3_bind_int64(stmt, 4, 1); // Force cols to 1 for vector mapping
                     
-                    size_t byte_size = obj.v_dim * sizeof(std::complex<double>);
-                    sqlite3_bind_blob(stmt, 5, obj.raw_buffer(), static_cast<int>(byte_size), SQLITE_STATIC);
-                }
-            }, obj_variant);
+    //                 size_t byte_size = obj.v_dim * sizeof(std::complex<double>);
+    //                 sqlite3_bind_blob(stmt, 5, obj.raw_buffer(), static_cast<int>(byte_size), SQLITE_STATIC);
+    //             }
+    //         }, obj_variant);
 
-            sqlite3_step(stmt);
-        }
-        sqlite3_finalize(stmt);
-        execute_sql(db, "COMMIT;");
+    //         sqlite3_step(stmt);
+    //     }
+    //     sqlite3_finalize(stmt);
+    //     execute_sql(db, "COMMIT;");
         
-    } catch (...) {
-        execute_sql(db, "ROLLBACK;");
-        sqlite3_close(db);
-        throw;
-    }
+    // } catch (...) {
+    //     execute_sql(db, "ROLLBACK;");
+    //     sqlite3_close(db);
+    //     throw;
+    // }
 
     sqlite3_close(db);
     std::cout << "[SANDBOX] Successfully saved sandbox to: " << s_filepath.filename() << "\n";
@@ -162,7 +199,7 @@ void SandboxSessionManager::switch_sandbox(const std::string& new_filename) {
 
     // Kill the memory spike by assigning an empty map forces the immediate 
     // destruction of all heavy variants/vectors AND drops the bucket allocation.
-    s_registry = std::unordered_map<std::string, LinAlgObject>(); 
+    sandbox_registry = std::unordered_map<uint64_t, MathObjMap>();
 
     // Re-target the path and read the new database
     active_filename = new_filename;

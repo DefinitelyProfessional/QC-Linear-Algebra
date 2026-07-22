@@ -23,9 +23,13 @@ namespace STAGE {
     public:
         // Register a new window dynamically into the ecosystem
         template <typename T, typename... Args> T* RegisterWindow(Args&&... args) {
-            // Create the derived window instance safely
+            // Lvalues : PERSISTENT MEMORY address with an IDENTITY (COPY!)
+            // Rvalues : TEMPORARY OBJECT that DOESN'T have a persistent memory address (MOVE!)
+            //  Allocate and return unique_ptr memory for the window objects
             auto window = std::make_unique<T>(std::forward<Args>(args)...);
+            // Store a non-owning pointer to the window object for callbacks at main
             T* rawPtr = window.get();
+            // window no longer needed locally, transfer mem loc ownership to windows_registry
             windows_registry.push_back(std::move(window));
             return rawPtr; // Return pointer so main can bind callbacks immediately
         }
@@ -44,7 +48,7 @@ namespace STAGE {
     void StartRenderLoop();
 
     // Encapsulates the complete end of the render loop
-    void EndRenderLoop(GLFWwindow* window, ImVec4& clear_color);
+    void EndRenderLoop(GLFWwindow* window, const ImVec4& clear_color);
 
     // Encapsulates the complete memory cleanup n shutdown sequence
     void ShutdownApplication(GLFWwindow* window);
