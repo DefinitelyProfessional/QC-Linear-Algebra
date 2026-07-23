@@ -12,9 +12,6 @@
 #include <string>
 #include <utility>
 
-// Forward declare sqlite3
-struct sqlite3;
-
 struct MathObjMap {
     MathObjType type;
     uint32_t obj_index;
@@ -77,9 +74,6 @@ private:
     inline uint64_t get_hash_key(std::string_view key_str) const {
         return std::hash<std::string_view>{}(key_str);
     }
-
-    // Helper function to execute simple sqlite3
-    static void execute_sql(sqlite3* db, const std::string& sql);
     
     // LOAD sandbox data from specified filename
     void load_sandbox();

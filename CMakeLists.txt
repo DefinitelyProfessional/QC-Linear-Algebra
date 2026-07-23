@@ -38,29 +38,26 @@ file(MAKE_DIRECTORY "${BUNDLE_DIR}/saved-data")
 # ---------------------------------------------------------
 find_package(glfw3 CONFIG REQUIRED) 
 find_package(Boost CONFIG REQUIRED)
-find_package(SQLite3 REQUIRED)
 find_package(OpenGL REQUIRED)
 
+# ---------------------------------------------------------
+# HDF5 SPECIFIC SETUPS
+# ---------------------------------------------------------
+set(HDF5_USE_STATIC_LIBRARIES ON)
+find_package(HDF5 COMPONENTS CXX REQUIRED)
 # ---------------------------------------------------------
 # SOURCE & HEADER MAPPINGS
 # ---------------------------------------------------------
 # Listing headers here tells VSCode that they belong to this target.
 set(APP_SOURCES
-    # Core Entry
     src/main.cpp
     src/app.rc
-
-    # Math Core Module
     src/math-core/math-functions.cpp
     src/math-core/math-functions.hpp
     src/math-core/math-objects.cpp
     src/math-core/math-objects.hpp
-
-    # Storage Utilities Module
     src/storage-utilities/storage-utilities.cpp
     src/storage-utilities/storage-utilities.hpp
-
-    # UI Utilities Module
     src/ui-utilities/general-utilities.cpp
     src/ui-utilities/general-utilities.hpp
     src/ui-utilities/sandbox-manager.cpp
@@ -78,7 +75,6 @@ set(THIRDPARTY_SOURCES
     thirdparty/imgui/imgui_widgets.cpp
     thirdparty/imgui/backends/imgui_impl_glfw.cpp
     thirdparty/imgui/backends/imgui_impl_opengl3.cpp
-    thirdparty/sqlite3/sqlite3.c
 )
 
 # ---------------------------------------------------------
@@ -90,15 +86,15 @@ add_library(QC-LASER-ThirdParty STATIC ${THIRDPARTY_SOURCES})
 target_include_directories(QC-LASER-ThirdParty PUBLIC
     thirdparty/imgui
     thirdparty/imgui/backends
-    thirdparty/sqlite3
 )
 
 add_executable(${PROJECT_NAME} ${APP_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
+    ${HDF5_INCLUDE_DIRS}
 )
-
+target_compile_definitions(${PROJECT_NAME} PRIVATE H5_BUILT_AS_STATIC_LIB)
 # ---------------------------------------------------------
 # COMPILER-SPECIFIC OPTIMIZATIONS
 # ---------------------------------------------------------
@@ -124,12 +120,13 @@ endif()
 # PRECOMPILED HEADERS
 # ---------------------------------------------------------
 target_precompile_headers(${PROJECT_NAME} PRIVATE
+    "thirdparty/imgui/imgui.h"
+    <GLFW/glfw3.h>
+    <iostream>
+    <H5Cpp.h>
     <vector>
     <string>
     <memory>
-    <iostream>
-    <GLFW/glfw3.h>
-    "thirdparty/imgui/imgui.h"
 )
 
 # ---------------------------------------------------------
@@ -137,10 +134,11 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
 # ---------------------------------------------------------
 target_link_libraries(${PROJECT_NAME} PRIVATE
     QC-LASER-ThirdParty
-    glfw
-    OpenGL::GL
     Boost::headers
-    SQLite3::SQLite3
+    OpenGL::GL
+    glfw
+    ${HDF5_CXX_LIBRARIES}
+    ${HDF5_C_LIBRARIES}
 )
 
 if(MINGW)

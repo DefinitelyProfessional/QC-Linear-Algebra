@@ -38,7 +38,20 @@ this repository contains a `.vscode` directory to help you set up build and run 
 ---
 
 ## Development environment
-`CMakeLists.txt` file will handle finding and linking required libraries automatically. This project is made with `boost`, `OpenGL3`, `glfw`, and `sqlite3`. You may need to install the following packages for your dev environment. As for the one used in this project, it is `MSYS2` with `Ninja` build system. You can install the required packages by running the following command in your MSYS2 terminal:
+`CMakeLists.txt` file will handle finding and linking required libraries automatically. This project is made with the following software:
+```markdown
+- boost
+- OpenGL3 
+- glfw
+- HDF5 and its dependencies ...
+``` 
+You need to install said packages for your dev environment. Toolchains for this project is managed with `MSYS2` and its `pacman`, made with the `UCRT64` toolchain. `cmake` and `ninja` is used for managing compiling and build. You can install the required packages by running the following command in your MSYS2 UCRT64 terminal:
 ```bash
-pacman -S mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-boost mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-sqlite3
+pacman -S mingw-w64-ucrt-x86_64-toolchain \
+ mingw-w64-ucrt-x86_64-cmake \
+ mingw-w64-ucrt-x86_64-ninja \
+ mingw-w64-ucrt-x86_64-boost \
+ mingw-w64-ucrt-x86_64-glfw \
+ mingw-w64-ucrt-x86_64-hdf5 \
+ mingw-w64-ucrt-x86_64-pkgconf
 ```
